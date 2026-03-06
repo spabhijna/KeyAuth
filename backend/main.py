@@ -10,7 +10,7 @@ app = FastAPI(
     description="""
 ## Behavioral Biometric Authentication System
 
-This API implements **keystroke dynamics authentication** using Isolation Forest ML models.
+This API implements **keystroke dynamics authentication** using a multi-model ensemble (One-Class SVM + Isolation Forest + DTW).
 
 ### Authentication Flow
 

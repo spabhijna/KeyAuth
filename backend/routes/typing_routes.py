@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from backend.models import User, TypingSample
 from backend.ml.feature_extractor import extract_features
 from backend.ml.predict import verify_user
-from backend.ml.train_model import train_model, model_exists
+from backend.ml.train_model import train_model, model_exists, update_model
 from backend.schemas import (
     PhraseResponse, TrainRequest, TrainResponse, 
     VerifyRequest, VerifyResponse
@@ -48,7 +48,7 @@ async def get_phrase():
     "/train",
     response_model=TrainResponse,
     summary="Train user's typing model",
-    description="Train an Isolation Forest model using 10 typing samples. Call this after registration."
+    description="Train a One-Class SVM model using 20 typing samples. Call this after registration."
 )
 async def train_user(data: TrainRequest):
     """
@@ -76,10 +76,10 @@ async def train_user(data: TrainRequest):
     
     print(f"[TRAIN] User: {user_id}, Samples received: {len(samples) if samples else 0}")
     
-    if not samples or len(samples) < 10:
+    if not samples or len(samples) < 20:
         raise HTTPException(
             status_code=400, 
-            detail="At least 10 typing samples required for training"
+            detail="At least 20 typing samples required for training"
         )
     
     # Verify user exists
@@ -156,19 +156,29 @@ async def verify_typing(data: VerifyRequest):
     if result["prediction"] == 1:
         await TypingSample.create(
             user=user,
+            # Statistical features
             mean_hold=features[0],
             std_hold=features[1],
-            median_hold=features[2],
-            min_hold=features[3],
-            max_hold=features[4],
-            mean_flight=features[5],
-            std_flight=features[6],
-            median_flight=features[7],
-            typing_speed=features[8],
-            total_time=features[9],
-            duration_per_char=features[10],
-            backspace_rate=features[11]
+            mean_flight=features[2],
+            std_flight=features[3],
+            # First 6 normalized hold times
+            hold_0=features[4],
+            hold_1=features[5],
+            hold_2=features[6],
+            hold_3=features[7],
+            hold_4=features[8],
+            hold_5=features[9],
+            # First 6 normalized flight times
+            flight_0=features[10],
+            flight_1=features[11],
+            flight_2=features[12],
+            flight_3=features[13],
+            flight_4=features[14],
+            flight_5=features[15]
         )
+        
+        # Retrain model with new verified sample (adaptive learning)
+        update_model(features, user_id)
 
     status = "verified" if result["prediction"] == 1 else "suspicious"
     
@@ -178,5 +188,6 @@ async def verify_typing(data: VerifyRequest):
     return {
         "status": status,
         "confidence": result["confidence"],
-        "fallback_available": fallback_available
+        "fallback_available": fallback_available,
+        "model_scores": result.get("model_scores", {})
     }

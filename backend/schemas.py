@@ -8,11 +8,19 @@ from typing import Literal, Optional
 
 # ============== Auth Schemas ==============
 
+class KeystrokeEvent(BaseModel):
+    """Single keystroke event"""
+    key: str = Field(..., description="Key pressed (e.g., 'a', 'Backspace')")
+    type: Literal["down", "up"] = Field(..., description="Event type: 'down' or 'up'")
+    time: int = Field(..., ge=0, description="Timestamp in milliseconds")
+
+
 class RegisterRequest(BaseModel):
-    """User registration request"""
+    """User registration request with typing samples"""
     username: str = Field(..., min_length=3, max_length=50, description="Unique username")
     email: EmailStr = Field(..., description="User email for login alerts")
     password: str = Field(..., min_length=6, description="Password (min 6 characters)")
+    samples: list[list[dict]] = Field(..., min_length=20, description="20+ typing samples for model training")
 
     model_config = {
         "json_schema_extra": {
@@ -20,7 +28,8 @@ class RegisterRequest(BaseModel):
                 {
                     "username": "johndoe",
                     "email": "john@example.com",
-                    "password": "securepassword123"
+                    "password": "securepassword123",
+                    "samples": [[{"key": "t", "type": "down", "time": 0}, {"key": "t", "type": "up", "time": 50}]]
                 }
             ]
         }
@@ -133,7 +142,7 @@ class TrainRequest(BaseModel):
                             {"key": "e", "type": "down", "time": 290},
                             {"key": "e", "type": "up", "time": 370}
                         ],
-                        "... (10 samples required)"
+                        "... (20 samples required)"
                     ]
                 }
             ]
@@ -151,7 +160,7 @@ class TrainResponse(BaseModel):
             "examples": [
                 {
                     "status": "training_complete",
-                    "samples_used": 10
+                    "samples_used": 20
                 }
             ]
         }
@@ -186,10 +195,11 @@ class VerifyRequest(BaseModel):
 
 
 class VerifyResponse(BaseModel):
-    """Verification result"""
+    """Verification result with multi-model scores"""
     status: Literal["verified", "suspicious"] = Field(description="Verification result")
-    confidence: float = Field(ge=0, le=1, description="Confidence score (0.0 to 1.0)")
+    confidence: float = Field(ge=0, le=1, description="Weighted confidence score (0.0 to 1.0)")
     fallback_available: bool = Field(default=False, description="Whether OTP fallback is available")
+    model_scores: dict = Field(default={}, description="Individual model confidence scores")
 
     model_config = {
         "json_schema_extra": {
@@ -197,7 +207,12 @@ class VerifyResponse(BaseModel):
                 {
                     "status": "verified",
                     "confidence": 0.87,
-                    "fallback_available": False
+                    "fallback_available": False,
+                    "model_scores": {
+                        "svm": 0.91,
+                        "iforest": 0.85,
+                        "dtw": 0.82
+                    }
                 }
             ]
         }

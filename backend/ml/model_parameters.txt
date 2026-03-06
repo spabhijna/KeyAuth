@@ -1,17 +1,18 @@
 ================================================================================
-KEYSTROKE DYNAMICS AUTHENTICATION - MODEL PARAMETERS
+KEYSTROKE DYNAMICS AUTHENTICATION - MULTI-MODEL PARAMETERS
 ================================================================================
 
 MODEL ARCHITECTURE
 ------------------
-Type: sklearn.pipeline.Pipeline
+Type: Multi-Model Ensemble
 Components:
-  1. StandardScaler (feature normalization)
-  2. IsolationForest (anomaly detection)
+  1. One-Class SVM (anomaly detection)
+  2. Isolation Forest (tree-based anomaly detection)
+  3. DTW Similarity (Dynamic Time Warping comparison)
 
 
-STANDARDSCALER PARAMETERS
--------------------------
+STANDARDSCALER PARAMETERS (shared)
+----------------------------------
 Purpose: Normalize features to zero mean and unit variance
 Default settings (sklearn defaults):
   - with_mean: True
@@ -19,14 +20,30 @@ Default settings (sklearn defaults):
   - copy: True
 
 
-ISOLATIONFOREST PARAMETERS
---------------------------
-  n_estimators:    200      # Number of trees in the forest
-  contamination:   0.03     # Expected proportion of outliers (3%)
-  max_samples:     1.0      # Use all training samples
-  max_features:    1.0      # Use all 12 features
-  bootstrap:       True     # Helps with small sample size
+MODEL 1: ONE-CLASS SVM
+----------------------
+  kernel:          'rbf'    # RBF kernel for non-linear decision boundary
+  nu:              0.3      # Lenient - allows 30% margin for variation
+  gamma:           'auto'   # 1/n_features - works better with small datasets
+  weight:          0.4      # Ensemble weight (highest - proven for small samples)
+
+
+MODEL 2: ISOLATION FOREST
+-------------------------
+  n_estimators:    100      # Number of trees in the forest
+  contamination:   0.1      # Expected proportion of outliers (10%)
+  max_samples:     'auto'   # Use min(256, n_samples) samples per tree
   random_state:    42       # For reproducibility
+  weight:          0.3      # Ensemble weight
+
+
+MODEL 3: DTW SIMILARITY
+-----------------------
+  Algorithm:       Standard Dynamic Time Warping
+  Distance metric: Euclidean (element-wise absolute difference)
+  Comparison:      Against all normalized reference samples
+  Score method:    exp(-min_distance / 5.0) exponential decay
+  weight:          0.3      # Ensemble weight
 
 
 INPUT FEATURES (12 values per sample)
@@ -47,16 +64,26 @@ INPUT FEATURES (12 values per sample)
 
 TRAINING CONFIGURATION
 ----------------------
-  Training samples:     10 (collected via interactive typing)
-  Target phrase:        "secure login verification"
+  Training samples:     20 (collected via interactive typing)
+  Target phrase:        "Authentication is the key to security"
   Model storage:        backend/ml/models/user_{user_id}.pkl
+  Storage format:       Dict with 'svm', 'iforest', 'dtw_reference', 'dtw_scaler', 'raw_samples'
   Serialization:        joblib
 
 
-VERIFICATION SETTINGS
----------------------
-  Confidence mapping:   Sigmoid transformation of IsolationForest decision_function
-  Status "verified":    When model predicts sample as inlier (prediction = 1)
-  Status "suspicious":  When model predicts sample as outlier (prediction = -1)
+ENSEMBLE DECISION
+-----------------
+  Final prediction:     Majority vote (2 out of 3 models)
+  Final confidence:     Weighted average (SVM: 40%, IForest: 30%, DTW: 30%)
+  Status "verified":    When majority predicts inlier
+  Status "suspicious":  When majority predicts outlier
+
+
+ADAPTIVE LEARNING
+-----------------
+  Trigger:              On successful verification (prediction = 1)
+  Action:               Retrain all 3 models with new sample added
+  Max samples:          50 (keeps most recent to prevent drift)
+  Latency impact:       ~0.5-1s per successful verification
 
 ================================================================================

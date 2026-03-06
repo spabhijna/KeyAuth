@@ -1,7 +1,18 @@
 """
 Feature extraction from raw keystroke events
-Converts keystroke timings into feature vector for ML model
+Converts keystroke timings into 16-feature vector for ML model
+
+Features capture both statistical summaries AND per-key timing rhythm:
+- 4 statistical features (mean/std for hold and flight times)
+- 6 normalized first hold times (captures typing rhythm pattern)
+- 6 normalized first flight times (captures inter-key timing pattern)
+
+The normalization (time / mean_time) captures RHYTHM not absolute speed,
+so a user typing slower due to being tired won't trigger false rejection.
 """
+
+# Number of per-key timing features to capture
+NUM_TIMING_FEATURES = 6
 
 
 def extract_features(keystrokes: list) -> list:
@@ -15,44 +26,73 @@ def extract_features(keystrokes: list) -> list:
         ...
     ]
     
-    Output format (12-feature vector):
+    Output format (16-feature vector):
     [
-        mean_hold, std_hold, median_hold, min_hold, max_hold,
-        mean_flight, std_flight, median_flight,
-        typing_speed, total_time, duration_per_char, backspace_rate
+        mean_hold, std_hold,           # Statistical hold features
+        mean_flight, std_flight,       # Statistical flight features
+        hold_0, hold_1, ..., hold_5,   # First 6 normalized hold times
+        flight_0, flight_1, ..., flight_5  # First 6 normalized flight times
     ]
+    
+    Normalized timing = raw_time / mean_time
+    This captures typing RHYTHM (pattern) rather than absolute speed.
     """
+    # Default 16-feature vector for empty/invalid input
+    default_features = [
+        100.0, 10.0,  # mean_hold, std_hold
+        80.0, 15.0,   # mean_flight, std_flight
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0,  # normalized holds (1.0 = neutral)
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0   # normalized flights (1.0 = neutral)
+    ]
+    
     if not keystrokes or len(keystrokes) < 2:
-        # Default values for empty/invalid input
-        return [100.0, 10.0, 100.0, 50.0, 150.0, 80.0, 15.0, 80.0, 5.0, 5000.0, 200.0, 0.02]
+        return default_features
     
-    # Group events by key
-    key_events = {}
-    for event in keystrokes:
-        key = event["key"]
-        if key not in key_events:
-            key_events[key] = {"down": None, "up": None}
-        key_events[key][event["type"]] = event["time"]
+    # Sort events by time to process sequentially
+    sorted_events = sorted(keystrokes, key=lambda e: e["time"])
     
-    # Calculate hold times (time between key down and key up)
+    # Track pending keydown events (key -> list of down times)
+    # Using list to handle repeated characters correctly (FIFO)
+    pending_downs = {}
+    
+    # Collect ALL hold times in sequence order
     hold_times = []
-    for key, events in key_events.items():
-        if events["down"] is not None and events["up"] is not None:
-            hold_time = events["up"] - events["down"]
-            if hold_time > 0:
-                hold_times.append(hold_time)
+    
+    for event in sorted_events:
+        key = event["key"]
+        
+        # Skip backspace events entirely - they only indicate typos, not typing rhythm
+        if key.lower() == "backspace":
+            continue
+            
+        if event["type"] == "down":
+            # Add this keydown to pending list for this key
+            if key not in pending_downs:
+                pending_downs[key] = []
+            pending_downs[key].append(event["time"])
+            
+        elif event["type"] == "up":
+            # Match with earliest pending keydown for this key (FIFO)
+            if key in pending_downs and pending_downs[key]:
+                down_time = pending_downs[key].pop(0)
+                hold_time = event["time"] - down_time
+                if hold_time > 0:
+                    hold_times.append(hold_time)
     
     # Calculate flight times (time between consecutive key presses)
+    # Filter out backspace events
     down_events = sorted(
-        [e for e in keystrokes if e["type"] == "down"],
+        [e for e in keystrokes if e["type"] == "down" and e["key"].lower() != "backspace"],
         key=lambda x: x["time"]
     )
+    
     flight_times = []
     for i in range(1, len(down_events)):
         flight = down_events[i]["time"] - down_events[i-1]["time"]
         if flight > 0:
             flight_times.append(flight)
     
+    # ===== Helper functions =====
     def mean(lst):
         return sum(lst) / len(lst) if lst else 0.0
     
@@ -63,40 +103,50 @@ def extract_features(keystrokes: list) -> list:
         variance = sum((x - m) ** 2 for x in lst) / len(lst)
         return variance ** 0.5
     
-    def median(lst):
-        if not lst:
-            return 0.0
-        sorted_lst = sorted(lst)
-        n = len(sorted_lst)
-        mid = n // 2
-        if n % 2 == 0:
-            return (sorted_lst[mid - 1] + sorted_lst[mid]) / 2
-        return sorted_lst[mid]
-    
-    # Hold time features
+    # ===== Statistical features =====
     mean_hold = mean(hold_times) if hold_times else 100.0
     std_hold = std(hold_times) if hold_times else 10.0
-    median_hold = median(hold_times) if hold_times else 100.0
-    min_hold = min(hold_times) if hold_times else 50.0
-    max_hold = max(hold_times) if hold_times else 150.0
-    
-    # Flight time features
     mean_flight = mean(flight_times) if flight_times else 80.0
     std_flight = std(flight_times) if flight_times else 15.0
-    median_flight = median(flight_times) if flight_times else 80.0
     
-    # Timing features
-    total_time = max(e["time"] for e in keystrokes) - min(e["time"] for e in keystrokes)
-    num_keys = len([e for e in keystrokes if e["type"] == "down"])
-    typing_speed = (num_keys / (total_time / 1000)) if total_time > 0 else 5.0
-    duration_per_char = total_time / num_keys if num_keys > 0 else 200.0
+    # ===== Normalized per-key timing features =====
+    # Normalize by dividing by mean - captures RHYTHM not absolute speed
+    # A user typing slower (tired) will still have same normalized pattern
     
-    # Backspace rate
-    backspace_count = sum(1 for e in keystrokes if e["key"].lower() == "backspace" and e["type"] == "down")
-    backspace_rate = backspace_count / num_keys if num_keys > 0 else 0.0
+    def normalize_and_pad(times: list, mean_time: float, count: int) -> list:
+        """Normalize times and pad/truncate to fixed length."""
+        if mean_time <= 0:
+            mean_time = 1.0  # Avoid division by zero
+        
+        # Normalize: time / mean gives ratio (1.0 = average)
+        normalized = [t / mean_time for t in times[:count]]
+        
+        # Pad with 1.0 (neutral value) if not enough samples
+        while len(normalized) < count:
+            normalized.append(1.0)
+        
+        return normalized
     
+    # First 6 normalized hold times
+    norm_holds = normalize_and_pad(hold_times, mean_hold, NUM_TIMING_FEATURES)
+    
+    # First 6 normalized flight times  
+    norm_flights = normalize_and_pad(flight_times, mean_flight, NUM_TIMING_FEATURES)
+    
+    # ===== Build 16-feature vector =====
     return [
-        mean_hold, std_hold, median_hold, min_hold, max_hold,
-        mean_flight, std_flight, median_flight,
-        typing_speed, total_time, duration_per_char, backspace_rate
+        mean_hold, std_hold,
+        mean_flight, std_flight,
+        *norm_holds,    # 6 normalized hold times
+        *norm_flights   # 6 normalized flight times
+    ]
+
+
+def get_feature_names() -> list:
+    """Return names of all 16 features for debugging/display."""
+    return [
+        "mean_hold", "std_hold",
+        "mean_flight", "std_flight",
+        "hold_0", "hold_1", "hold_2", "hold_3", "hold_4", "hold_5",
+        "flight_0", "flight_1", "flight_2", "flight_3", "flight_4", "flight_5"
     ]

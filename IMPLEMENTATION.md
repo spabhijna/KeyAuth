@@ -203,7 +203,7 @@ aiosqlite>=0.22.1      # SQLite async driver
 bcrypt>=4.0.0          # Password hashing
 fastapi>=0.135.1       # Web framework
 joblib>=1.5.3          # Model serialization
-scikit-learn>=1.8.0    # ML (Isolation Forest)
+scikit-learn>=1.8.0    # ML (One-Class SVM)
 tortoise-orm>=1.1.6    # Async ORM
 uvicorn>=0.41.0        # ASGI server
 ```
@@ -239,7 +239,7 @@ Typing Verification (/verify)
         ↓
 Feature Extraction (ml/feature_extractor.py)
         ↓
-Isolation Forest Prediction (ml/predict.py) [PLACEHOLDER]
+One-Class SVM Prediction (ml/predict.py)
         ↓
 Tortoise ORM
         ↓
@@ -251,8 +251,8 @@ SQLite Database
 ## TODO — Remaining Phases
 
 ### Phase 5 — Registration Training
-- Collect 10 typing samples during registration
-- Train per-user Isolation Forest model
+- Collect 20 typing samples during registration
+- Train per-user One-Class SVM model
 - Save model to disk with joblib
 
 ### Phase 6 — Real ML Integration

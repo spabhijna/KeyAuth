@@ -16,6 +16,22 @@
         <button id="verifyBtn" disabled>Verify</button>
         <p id="message"></p>
         
+        <!-- OTP Fallback Section (hidden by default) -->
+        <div id="otpSection" class="otp-section" style="display: none;">
+            <div class="otp-header">
+                <h2>Verification Failed</h2>
+                <p class="otp-instruction">Your typing pattern wasn't recognized. Use a one-time password to verify your identity.</p>
+            </div>
+            <button id="requestOtpBtn" type="button">Send OTP to Email</button>
+            <div id="otpInputSection" class="otp-input-section">
+                <p class="otp-sent-msg" id="otpSentMsg"></p>
+                <input type="text" id="otpInput" placeholder="Enter 6-digit code" maxlength="6" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]*">
+                <button id="verifyOtpBtn" type="button">Verify OTP</button>
+                <button id="resendOtpBtn" type="button" class="secondary-btn">Resend OTP</button>
+            </div>
+            <p id="otpMessage" class="otp-message"></p>
+        </div>
+        
         <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
             <p style="font-size: 0.9em; color: #666;">Developer Tools:</p>
             <input type="file" id="loadSampleInput" accept=".json" style="display: none;">

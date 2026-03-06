@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Successful</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✓</div>
+        <h1>Login Successful</h1>
+        <p id="welcomeMessage" class="instruction"></p>
+        <div class="result-box">
+            <p>Verification Method: <strong id="verificationMethod">-</strong></p>
+            <p id="verificationDetails"></p>
+        </div>
+        <button id="continueBtn">Continue to Dashboard</button>
+        <button id="logoutBtn" class="secondary-btn">Logout</button>
+    </div>
+
+    <script>
+        // Get verification result from localStorage
+        const result = JSON.parse(localStorage.getItem('verificationResult') || '{}');
+        const userId = localStorage.getItem('user_id');
+        const username = localStorage.getItem('username');
+
+        // Display welcome message
+        document.getElementById('welcomeMessage').textContent = 
+            username ? `Welcome back, ${username}!` : 'Welcome!';
+
+        // Display verification method
+        const methodEl = document.getElementById('verificationMethod');
+        const detailsEl = document.getElementById('verificationDetails');
+
+        if (result.method === 'otp') {
+            methodEl.textContent = 'One-Time Password (OTP)';
+            methodEl.style.color = '#667eea';
+            detailsEl.innerHTML = '<span style="color: #666;">You were authenticated via email OTP.</span>';
+        } else if (result.status === 'verified') {
+            methodEl.textContent = 'Keystroke Biometrics';
+            methodEl.style.color = '#28a745';
+            if (result.confidence) {
+                detailsEl.innerHTML = `<span style="color: #666;">Confidence: <strong>${Math.round(result.confidence * 100)}%</strong></span>`;
+            }
+        } else {
+            methodEl.textContent = 'Unknown';
+        }
+
+        // Continue button
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            window.location.href = 'dashboard.html';
+        });
+
+        // Logout button
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('username');
+            localStorage.removeItem('verificationResult');
+            window.location.href = 'login.html';
+        });
+
+        // Redirect to login if no session
+        if (!userId) {
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

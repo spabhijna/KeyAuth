@@ -172,3 +172,98 @@ button#trainModelBtn:disabled {
     font-size: 20px;
     color: #667eea;
 }
+
+/* OTP Fallback Section */
+.otp-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.otp-header h2 {
+    color: #dc3545;
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.otp-instruction {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.otp-sent-msg {
+    color: #28a745;
+    font-size: 14px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #e8f5e9;
+    border-radius: 5px;
+}
+
+input#otpInput {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    font-size: 24px;
+    text-align: center;
+    letter-spacing: 8px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    background: #fff;
+    color: #333;
+    -webkit-user-select: text;
+    user-select: text;
+    pointer-events: auto;
+}
+
+input#otpInput:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.otp-message {
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.otp-message.error {
+    color: #dc3545;
+}
+
+.otp-message.success {
+    color: #28a745;
+}
+
+.secondary-btn {
+    background: #6c757d;
+    margin-top: 10px;
+}
+
+.secondary-btn:hover {
+    background: #5a6268;
+}
+
+.otp-input-section {
+    display: none;
+}
+
+.otp-input-section.visible {
+    display: block;
+}
+
+/* Success Page */
+.success-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 40px;
+    color: white;
+}

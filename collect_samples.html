@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collect Typing Samples</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .phrase {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #667eea;
+            padding: 15px;
+            background: #f0f0ff;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .progress-bar {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+        .match { color: #28a745; }
+        .no-match { color: #dc3545; }
+        .sample-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin: 15px 0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        .sample-item {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .sample-item:last-child { border-bottom: none; }
+        .info { color: #666; font-size: 0.9em; margin: 10px 0; }
+        .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+        .json-preview {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8em;
+            max-height: 300px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Typing Sample Collector</h1>
+        <p class="info">Collect typing samples to test the keystroke authentication system.</p>
+
+        <div class="section">
+            <label><strong>Phrase to type:</strong></label>
+            <input type="text" id="phraseInput" value="Authentication is the key to security" placeholder="Enter phrase...">
+        </div>
+
+        <div class="phrase" id="phraseDisplay">Authentication is the key to security</div>
+        
+        <input type="text" id="typingInput" placeholder="Type the phrase here..." autocomplete="off">
+        <p id="matchStatus"></p>
+
+        <div>
+            <button id="submitBtn" class="btn-primary" disabled>Submit Sample</button>
+            <button id="clearInputBtn" class="btn-secondary">Clear Input</button>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <p><strong>Samples collected: <span id="sampleCount">0</span></strong></p>
+
+        <div class="sample-list" id="sampleList">
+            <em>No samples yet</em>
+        </div>
+
+        <div>
+            <button id="downloadBtn" class="btn-success" disabled>Download JSON</button>
+            <button id="copyBtn" class="btn-primary" disabled>Copy to Clipboard</button>
+            <button id="clearAllBtn" class="btn-danger">Clear All Samples</button>
+        </div>
+
+        <div class="section">
+            <h3>JSON Preview</h3>
+            <div class="json-preview" id="jsonPreview">{ "samples": [] }</div>
+        </div>
+    </div>
+
+    <script>
+        let allSamples = [];
+        let currentKeystrokes = [];
+        
+        const phraseInput = document.getElementById('phraseInput');
+        const phraseDisplay = document.getElementById('phraseDisplay');
+        const typingInput = document.getElementById('typingInput');
+        const matchStatus = document.getElementById('matchStatus');
+        const submitBtn = document.getElementById('submitBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const sampleCount = document.getElementById('sampleCount');
+        const progressFill = document.getElementById('progressFill');
+        const sampleList = document.getElementById('sampleList');
+        const jsonPreview = document.getElementById('jsonPreview');
+
+        // Update phrase when input changes
+        phraseInput.addEventListener('input', () => {
+            phraseDisplay.textContent = phraseInput.value;
+        });
+
+        // Capture keystrokes
+        typingInput.addEventListener('keydown', (e) => {
+            currentKeystrokes.push({
+                key: e.key,
+                type: 'down',
+                time: Math.round(performance.now())
+            });
+        });
+
+        typingInput.addEventListener('keyup', (e) => {
+            currentKeystrokes.push({
+                key: e.key,
+                type: 'up',
+                time: Math.round(performance.now())
+            });
+            updateMatchStatus();
+        });
+
+        function updateMatchStatus() {
+            const phrase = phraseInput.value;
+            const typed = typingInput.value;
+            
+            if (typed === phrase) {
+                matchStatus.textContent = '✓ Phrase matches - Click "Submit Sample"';
+                matchStatus.className = 'match';
+                submitBtn.disabled = false;
+            } else if (phrase.startsWith(typed)) {
+                matchStatus.textContent = `${typed.length}/${phrase.length} characters`;
+                matchStatus.className = '';
+                submitBtn.disabled = true;
+            } else {
+                matchStatus.textContent = '✗ Mismatch detected';
+                matchStatus.className = 'no-match';
+                submitBtn.disabled = true;
+            }
+        }
+
+        function updateUI() {
+            sampleCount.textContent = allSamples.length;
+            progressFill.style.width = `${Math.min(100, (allSamples.length / 20) * 100)}%`;
+            
+            downloadBtn.disabled = allSamples.length === 0;
+            copyBtn.disabled = allSamples.length === 0;
+
+            // Update sample list
+            if (allSamples.length === 0) {
+                sampleList.innerHTML = '<em>No samples yet</em>';
+            } else {
+                sampleList.innerHTML = allSamples.map((sample, i) => {
+                    const duration = sample[sample.length - 1].time - sample[0].time;
+                    return `<div class="sample-item">
+                        <span>Sample ${i + 1}</span>
+                        <span>${sample.length} events, ${Math.round(duration)}ms</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Update JSON preview
+            updateJsonPreview();
+        }
+
+        function getJsonData() {
+            return {
+                phrase: phraseInput.value,
+                samples: allSamples,
+                collected_at: new Date().toISOString(),
+                sample_count: allSamples.length
+            };
+        }
+
+        function updateJsonPreview() {
+            const data = getJsonData();
+            // Show truncated preview
+            const preview = {
+                phrase: data.phrase,
+                sample_count: data.sample_count,
+                collected_at: data.collected_at,
+                samples: data.samples.length > 0 
+                    ? [`[${data.samples[0].length} events...]`, `... ${data.samples.length - 1} more samples`]
+                    : []
+            };
+            jsonPreview.textContent = JSON.stringify(preview, null, 2);
+        }
+
+        // Submit sample
+        submitBtn.addEventListener('click', () => {
+            if (typingInput.value !== phraseInput.value) return;
+
+            // Normalize timestamps (start from 0)
+            const startTime = currentKeystrokes[0]?.time || 0;
+            const normalizedSample = currentKeystrokes.map(k => ({
+                ...k,
+                time: k.time - startTime
+            }));
+
+            allSamples.push(normalizedSample);
+            currentKeystrokes = [];
+            typingInput.value = '';
+            matchStatus.textContent = '';
+            submitBtn.disabled = true;
+            
+            updateUI();
+            typingInput.focus();
+        });
+
+        // Clear input
+        document.getElementById('clearInputBtn').addEventListener('click', () => {
+            typingInput.value = '';
+            currentKeystrokes = [];
+            matchStatus.textContent = '';
+            submitBtn.disabled = true;
+            typingInput.focus();
+        });
+
+        // Clear all samples
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if (allSamples.length > 0 && !confirm('Delete all samples?')) return;
+            allSamples = [];
+            updateUI();
+        });
+
+        // Download JSON
+        downloadBtn.addEventListener('click', () => {
+            const data = getJsonData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `typing_samples_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Copy to clipboard
+        copyBtn.addEventListener('click', async () => {
+            const data = getJsonData();
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy to Clipboard'; }, 2000);
+            } catch (err) {
+                alert('Failed to copy');
+            }
+        });
+
+        // Initialize
+        updateUI();
+        typingInput.focus();
+    </script>
+</body>
+</html>

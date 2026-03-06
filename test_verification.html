@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Verification</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .phrase {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #667eea;
+            padding: 15px;
+            background: #f0f0ff;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .match { color: #28a745; font-weight: bold; }
+        .no-match { color: #dc3545; }
+        .result {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.1em;
+        }
+        .result.verified { background: #d4edda; border: 2px solid #28a745; }
+        .result.suspicious { background: #f8d7da; border: 2px solid #dc3545; }
+        .scores { font-family: monospace; margin-top: 10px; }
+        .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Keystroke Verification</h1>
+        
+        <div class="section">
+            <label>User ID to verify against:</label>
+            <input type="number" id="userId" value="1" min="1">
+        </div>
+        
+        <div class="section">
+            <label>Load trained model from samples:</label>
+            <input type="file" id="loadModel" accept=".json">
+            <p id="modelStatus" style="color: #666; font-size: 0.9em;"></p>
+        </div>
+        
+        <p>Type this phrase:</p>
+        <div class="phrase" id="phraseDisplay">Authentication is the key to security</div>
+        
+        <input type="text" id="typingInput" placeholder="Type the phrase here..." autocomplete="off">
+        <p id="matchStatus"></p>
+        
+        <div>
+            <button id="verifyBtn" class="btn-primary" disabled>Verify My Typing</button>
+            <button id="clearBtn" class="btn-danger">Clear & Try Again</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const PHRASE = "Authentication is the key to security";
+        let keystrokes = [];
+        
+        const input = document.getElementById('typingInput');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const matchStatus = document.getElementById('matchStatus');
+        const resultDiv = document.getElementById('result');
+
+        input.addEventListener('keydown', (e) => {
+            keystrokes.push({
+                key: e.key,
+                type: 'down',
+                time: Math.round(performance.now())
+            });
+        });
+
+        input.addEventListener('keyup', (e) => {
+            keystrokes.push({
+                key: e.key,
+                type: 'up',
+                time: Math.round(performance.now())
+            });
+            updateMatchStatus();
+        });
+
+        function updateMatchStatus() {
+            const typed = input.value;
+            if (typed === PHRASE) {
+                matchStatus.textContent = '✓ Phrase matches - Click "Verify My Typing"';
+                matchStatus.className = 'match';
+                verifyBtn.disabled = false;
+            } else if (PHRASE.startsWith(typed)) {
+                matchStatus.textContent = `${typed.length}/${PHRASE.length} characters`;
+                matchStatus.className = '';
+                verifyBtn.disabled = true;
+            } else {
+                matchStatus.textContent = '✗ Mismatch - clear and try again';
+                matchStatus.className = 'no-match';
+                verifyBtn.disabled = true;
+            }
+        }
+
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            keystrokes = [];
+            matchStatus.textContent = '';
+            verifyBtn.disabled = true;
+            resultDiv.style.display = 'none';
+            input.focus();
+        });
+
+        verifyBtn.addEventListener('click', async () => {
+            const userId = parseInt(document.getElementById('userId').value);
+            
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'Verifying...';
+            resultDiv.style.display = 'none';
+
+            // Normalize timestamps to start from 0
+            const startTime = keystrokes.length > 0 ? keystrokes[0].time : 0;
+            const normalizedKeystrokes = keystrokes.map(k => ({
+                ...k,
+                time: k.time - startTime
+            }));
+
+            try {
+                const res = await fetch('http://localhost:8000/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        keystrokes: normalizedKeystrokes
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    resultDiv.innerHTML = `<strong>Error:</strong> ${data.detail || 'Verification failed'}`;
+                    resultDiv.className = 'result suspicious';
+                } else {
+                    const status = data.status;
+                    const confidence = (data.confidence * 100).toFixed(1);
+                    const scores = data.model_scores || {};
+                    
+                    resultDiv.innerHTML = `
+                        <strong>Status: ${status.toUpperCase()}</strong><br>
+                        Confidence: ${confidence}%<br>
+                        <div class="scores">
+                            SVM: ${(scores.svm * 100).toFixed(0)}% | 
+                            IsoForest: ${(scores.iforest * 100).toFixed(0)}% | 
+                            DTW: ${(scores.dtw * 100).toFixed(0)}%
+                        </div>
+                    `;
+                    resultDiv.className = `result ${status}`;
+                }
+                
+                resultDiv.style.display = 'block';
+            } catch (err) {
+                resultDiv.innerHTML = `<strong>Error:</strong> Cannot connect to server (is backend running on port 8000?)`;
+                resultDiv.className = 'result suspicious';
+                resultDiv.style.display = 'block';
+            }
+
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify My Typing';
+        });
+
+        // Load model from JSON samples file
+        document.getElementById('loadModel').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const modelStatus = document.getElementById('modelStatus');
+            modelStatus.textContent = 'Loading samples...';
+            modelStatus.style.color = '#667eea';
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    const samples = data.samples || [];
+                    
+                    if (samples.length < 20) {
+                        modelStatus.textContent = `Error: Only ${samples.length} samples. Need 20 for training.`;
+                        modelStatus.style.color = '#dc3545';
+                        return;
+                    }
+
+                    // Register/train with these samples
+                    modelStatus.textContent = 'Training model...';
+                    
+                    const res = await fetch('http://localhost:8000/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: 'testuser_' + Date.now(),
+                            email: 'test@example.com',
+                            password: 'testpass123',
+                            samples: samples.slice(0, 20)
+                        })
+                    });
+
+                    const result = await res.json();
+
+                    if (res.ok) {
+                        const userId = result.user_id;
+                        document.getElementById('userId').value = userId;
+                        modelStatus.textContent = `✓ Model trained! User ID: ${userId}`;
+                        modelStatus.style.color = '#28a745';
+                    } else {
+                        modelStatus.textContent = `Error: ${result.detail || 'Training failed'}`;
+                        modelStatus.style.color = '#dc3545';
+                    }
+                } catch (err) {
+                    modelStatus.textContent = `Error: ${err.message}`;
+                    modelStatus.style.color = '#dc3545';
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Reset input
+        });
+
+        input.focus();
+    </script>
+</body>
+</html>

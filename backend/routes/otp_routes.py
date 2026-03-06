@@ -2,7 +2,7 @@
 OTP routes for 2FA fallback when keystroke verification fails
 """
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
@@ -55,7 +55,7 @@ async def request_otp(data: OTPRequest, background_tasks: BackgroundTasks):
     
     # Generate new OTP
     code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
     
     # Create OTP session
     await OTPSession.create(
@@ -119,8 +119,13 @@ async def verify_otp(data: OTPVerifyRequest):
     if not otp_session:
         raise HTTPException(status_code=400, detail="No active OTP session. Request a new OTP.")
     
-    # Check if expired
-    if datetime.utcnow() > otp_session.expires_at:
+    # Check if expired - make both datetimes timezone-aware for comparison
+    now = datetime.now(timezone.utc)
+    expires = otp_session.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    
+    if now > expires:
         otp_session.used = True
         await otp_session.save()
         return {

@@ -17,21 +17,25 @@ class User(Model):
 class TypingSample(Model):
     id = fields.IntField(pk=True)
     user = fields.ForeignKeyField("models.User", related_name="samples")
-    # Hold time features
+    # Statistical features
     mean_hold = fields.FloatField()
     std_hold = fields.FloatField()
-    median_hold = fields.FloatField()
-    min_hold = fields.FloatField()
-    max_hold = fields.FloatField()
-    # Flight time features
     mean_flight = fields.FloatField()
     std_flight = fields.FloatField()
-    median_flight = fields.FloatField()
-    # Timing features
-    typing_speed = fields.FloatField()
-    total_time = fields.FloatField()
-    duration_per_char = fields.FloatField()
-    backspace_rate = fields.FloatField()
+    # First 6 normalized hold times (captures typing rhythm)
+    hold_0 = fields.FloatField()
+    hold_1 = fields.FloatField()
+    hold_2 = fields.FloatField()
+    hold_3 = fields.FloatField()
+    hold_4 = fields.FloatField()
+    hold_5 = fields.FloatField()
+    # First 6 normalized flight times (captures inter-key timing)
+    flight_0 = fields.FloatField()
+    flight_1 = fields.FloatField()
+    flight_2 = fields.FloatField()
+    flight_3 = fields.FloatField()
+    flight_4 = fields.FloatField()
+    flight_5 = fields.FloatField()
     created_at = fields.DatetimeField(auto_now_add=True)
 
 
