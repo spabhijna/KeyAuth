@@ -1,0 +1,16 @@
+[project]
+name = "keyauth"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "bcrypt>=4.0.0",
+    "fastapi>=0.135.1",
+    "joblib>=1.5.3",
+    "ruff>=0.15.5",
+    "scikit-learn>=1.8.0",
+    "tortoise-orm>=1.1.6",
+    "uvicorn>=0.41.0",
+]
