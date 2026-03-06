@@ -133,3 +133,28 @@ async def login(data: LoginRequest, request: Request, background_tasks: Backgrou
         "status": "password_verified",
         "user_id": user.id
     }
+
+
+@router.get(
+    "/user-by-email",
+    summary="Get user by email",
+    description="Look up a user ID by their email address. Used by Chrome extension to find users during Gmail login."
+)
+async def get_user_by_email(email: str):
+    """
+    Look up user by email address.
+    
+    - **email**: Email address to search for
+    
+    Returns user_id and username if found.
+    """
+    email = email.strip().lower()
+    user = await User.filter(email=email).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "user_id": user.id,
+        "username": user.username
+    }

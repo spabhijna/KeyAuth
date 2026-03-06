@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeyAuth - Settings</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="fullpage">
+  <div class="container">
+    <div class="header">
+      <span class="logo">⚙️</span>
+      <h1>KeyAuth Settings</h1>
+    </div>
+
+    <div class="settings-section">
+      <h3>Server Configuration</h3>
+      <label for="apiUrl">Backend API URL</label>
+      <input type="text" id="apiUrl" placeholder="http://localhost:8000">
+      <p class="hint">The URL of your KeyAuth backend server</p>
+    </div>
+
+    <div class="settings-section">
+      <h3>Account</h3>
+      <div id="accountInfo">
+        <p>Logged in as: <strong id="currentUser">Not logged in</strong></p>
+        <p>Email: <span id="currentEmail">-</span></p>
+      </div>
+      <button id="logoutBtn" class="secondary-btn">Logout</button>
+    </div>
+
+    <div class="settings-section">
+      <h3>Retrain Model</h3>
+      <p class="hint">If your typing pattern has changed, you can retrain the model with new samples.</p>
+      <button id="retrainBtn">Retrain Typing Pattern</button>
+    </div>
+
+    <div class="settings-section">
+      <h3>Verification Session</h3>
+      <p class="hint">Duration before requiring re-verification (in minutes)</p>
+      <input type="number" id="sessionDuration" min="5" max="120" value="30">
+    </div>
+
+    <div class="button-group">
+      <button id="saveBtn">Save Settings</button>
+      <button id="resetBtn" class="secondary-btn">Reset to Defaults</button>
+    </div>
+
+    <div id="settingsMessage" class="message"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

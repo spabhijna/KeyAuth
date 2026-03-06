@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeyAuth - Register</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="fullpage">
+  <div class="container">
+    <div class="header">
+      <span class="logo">🔐</span>
+      <h1>KeyAuth Registration</h1>
+    </div>
+
+    <!-- Step 1: Account Details -->
+    <div id="step1" class="step">
+      <h2>Step 1: Create Account</h2>
+      <p class="subtitle">Enter your account details</p>
+      
+      <input type="text" id="username" placeholder="Username" autocomplete="username">
+      <input type="email" id="email" placeholder="Email Address" autocomplete="email">
+      <input type="password" id="password" placeholder="Password" autocomplete="new-password">
+      <input type="password" id="confirmPassword" placeholder="Confirm Password" autocomplete="new-password">
+      
+      <button id="nextStepBtn">Continue to Training</button>
+      <div id="step1Message" class="message"></div>
+      
+      <div class="link">
+        Already have an account? <a href="popup.html">Login here</a>
+      </div>
+    </div>
+
+    <!-- Step 2: Typing Training -->
+    <div id="step2" class="step" style="display: none;">
+      <h2>Step 2: Train Your Typing Pattern</h2>
+      <p class="subtitle">Type the phrase below <strong>20 times</strong> to train your unique typing pattern</p>
+      
+      <div class="progress-section">
+        <span>Samples collected: <strong id="sampleCount">0</strong> / 20</span>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+      
+      <p class="phrase" id="phraseDisplay">Loading phrase...</p>
+      
+      <input type="text" id="typingInput" placeholder="Type the phrase here..." autocomplete="off">
+      <div id="matchStatus" class="match-status"></div>
+      
+      <button id="submitSampleBtn" disabled>Submit Sample</button>
+      <button id="registerBtn" style="display: none;">Complete Registration</button>
+      
+      <div id="step2Message" class="message"></div>
+      
+      <button id="backBtn" class="secondary-btn">Back to Step 1</button>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div id="step3" class="step" style="display: none;">
+      <div class="success-box">
+        <div class="success-icon">✓</div>
+        <h2>Registration Complete!</h2>
+        <p>Your account has been created and your typing pattern has been trained.</p>
+        <p>You can now use KeyAuth to verify your identity during Gmail login.</p>
+        <button id="goToLoginBtn">Go to Login</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="register.js"></script>
+</body>
+</html>

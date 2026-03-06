@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeyAuth</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="popup-header">
+      <span class="logo">🔐</span>
+      <h1>KeyAuth</h1>
+    </div>
+
+    <!-- Not Logged In State -->
+    <div id="loginSection" class="section">
+      <p class="subtitle">Typing Biometrics Authentication</p>
+      
+      <div id="loginForm">
+        <input type="text" id="username" placeholder="Username" autocomplete="username">
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        <button id="loginBtn">Login</button>
+        <div id="loginMessage" class="message"></div>
+      </div>
+      
+      <div class="link">
+        New user? <a href="register.html" target="_blank">Register here</a>
+      </div>
+    </div>
+
+    <!-- Logged In - Status State (no pending login) -->
+    <div id="statusSection" class="section" style="display: none;">
+      <div class="user-info">
+        <span class="user-icon">👤</span>
+        <span id="statusUser"></span>
+        <button id="statusLogoutBtn" class="small-btn">Logout</button>
+      </div>
+      
+      <div class="status-box">
+        <div class="status-icon">✓</div>
+        <h3>KeyAuth Active</h3>
+        <p>You're logged in and protected. Typing verification will be required when you sign in to Gmail.</p>
+      </div>
+      
+      <div class="link">
+        <a href="options.html" target="_blank">⚙️ Settings</a>
+      </div>
+    </div>
+
+    <!-- Logged In - Verification State (Gmail login pending) -->
+    <div id="verifySection" class="section" style="display: none;">
+      <div class="user-info">
+        <span class="user-icon">👤</span>
+        <span id="loggedInUser"></span>
+        <button id="logoutBtn" class="small-btn">Logout</button>
+      </div>
+      
+      <div id="gmailPending">
+        <div class="alert">
+          <strong>Gmail Login Detected</strong>
+          <p>Verify your identity to proceed with: <span id="gmailEmail"></span></p>
+        </div>
+      </div>
+      
+      <div class="verify-box">
+        <p class="instruction">Type the phrase below to verify:</p>
+        <p class="phrase" id="phraseDisplay">Loading...</p>
+        <input type="text" id="typingInput" placeholder="Type the phrase here..." autocomplete="off">
+        <div id="matchStatus" class="match-status"></div>
+        <button id="verifyBtn" disabled>Verify Identity</button>
+        <div id="verifyMessage" class="message"></div>
+      </div>
+      
+      <!-- OTP Fallback -->
+      <div id="otpSection" class="otp-section" style="display: none;">
+        <div class="otp-header">
+          <h3>⚠️ Typing Verification Failed</h3>
+          <p>Your typing pattern didn't match. Use email OTP as backup.</p>
+        </div>
+        <button id="requestOtpBtn">Send OTP to Email</button>
+        
+        <div id="otpInputSection" class="otp-input-section">
+          <p id="otpSentMsg" class="otp-sent-msg"></p>
+          <input type="text" id="otpInput" placeholder="000000" maxlength="6">
+          <button id="verifyOtpBtn">Verify OTP</button>
+        </div>
+        <div id="otpMessage" class="message"></div>
+        <button id="retryTypingBtn" class="secondary-btn">Try Typing Again</button>
+      </div>
+    </div>
+
+    <!-- Success State -->
+    <div id="successSection" class="section" style="display: none;">
+      <div class="success-box">
+        <span class="success-icon">✓</span>
+        <h2>Verified!</h2>
+        <p>Your identity has been confirmed.</p>
+        <p class="confidence">Confidence: <span id="confidenceScore">--</span>%</p>
+        <button id="doneBtn">Done</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="popup-footer">
+      <a href="options.html" target="_blank">⚙️ Settings</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
