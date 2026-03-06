@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from tortoise.contrib.fastapi import register_tortoise
-from backend.routes import auth_routes, typing_routes
+from backend.routes import auth_routes, typing_routes, otp_routes
 from backend.database import TORTOISE_ORM
 
 
@@ -60,6 +60,7 @@ register_tortoise(
 
 app.include_router(auth_routes.router)
 app.include_router(typing_routes.router)
+app.include_router(otp_routes.router)
 
 
 @app.get("/")

@@ -1,0 +1,62 @@
+================================================================================
+KEYSTROKE DYNAMICS AUTHENTICATION - MODEL PARAMETERS
+================================================================================
+
+MODEL ARCHITECTURE
+------------------
+Type: sklearn.pipeline.Pipeline
+Components:
+  1. StandardScaler (feature normalization)
+  2. IsolationForest (anomaly detection)
+
+
+STANDARDSCALER PARAMETERS
+-------------------------
+Purpose: Normalize features to zero mean and unit variance
+Default settings (sklearn defaults):
+  - with_mean: True
+  - with_std: True
+  - copy: True
+
+
+ISOLATIONFOREST PARAMETERS
+--------------------------
+  n_estimators:    200      # Number of trees in the forest
+  contamination:   0.03     # Expected proportion of outliers (3%)
+  max_samples:     1.0      # Use all training samples
+  max_features:    1.0      # Use all 12 features
+  bootstrap:       True     # Helps with small sample size
+  random_state:    42       # For reproducibility
+
+
+INPUT FEATURES (12 values per sample)
+-------------------------------------
+  1. mean_hold         - Average time a key is held down (ms)
+  2. std_hold          - Standard deviation of hold times (ms)
+  3. median_hold       - Median hold time (ms)
+  4. min_hold          - Minimum hold time (ms)
+  5. max_hold          - Maximum hold time (ms)
+  6. mean_flight       - Average time between key presses (ms)
+  7. std_flight        - Standard deviation of flight times (ms)
+  8. median_flight     - Median flight time (ms)
+  9. typing_speed      - Keys pressed per second
+  10. total_time       - Total typing duration (ms)
+  11. duration_per_char - Average time per character (ms)
+  12. backspace_rate   - Ratio of backspace presses to total keys
+
+
+TRAINING CONFIGURATION
+----------------------
+  Training samples:     10 (collected via interactive typing)
+  Target phrase:        "secure login verification"
+  Model storage:        backend/ml/models/user_{user_id}.pkl
+  Serialization:        joblib
+
+
+VERIFICATION SETTINGS
+---------------------
+  Confidence mapping:   Sigmoid transformation of IsolationForest decision_function
+  Status "verified":    When model predicts sample as inlier (prediction = 1)
+  Status "suspicious":  When model predicts sample as outlier (prediction = -1)
+
+================================================================================

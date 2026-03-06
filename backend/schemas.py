@@ -2,8 +2,8 @@
 Pydantic schemas for API request/response validation
 """
 
-from pydantic import BaseModel, Field
-from typing import Literal
+from pydantic import BaseModel, EmailStr, Field
+from typing import Literal, Optional
 
 
 # ============== Auth Schemas ==============
@@ -11,7 +11,7 @@ from typing import Literal
 class RegisterRequest(BaseModel):
     """User registration request"""
     username: str = Field(..., min_length=3, max_length=50, description="Unique username")
-    email: str = Field(default=None, description="User email (optional)")
+    email: EmailStr = Field(..., description="User email for login alerts")
     password: str = Field(..., min_length=6, description="Password (min 6 characters)")
 
     model_config = {
@@ -133,7 +133,7 @@ class TrainRequest(BaseModel):
                             {"key": "e", "type": "down", "time": 290},
                             {"key": "e", "type": "up", "time": 370}
                         ],
-                        "... (8 samples minimum)"
+                        "... (10 samples required)"
                     ]
                 }
             ]
@@ -189,13 +189,85 @@ class VerifyResponse(BaseModel):
     """Verification result"""
     status: Literal["verified", "suspicious"] = Field(description="Verification result")
     confidence: float = Field(ge=0, le=1, description="Confidence score (0.0 to 1.0)")
+    fallback_available: bool = Field(default=False, description="Whether OTP fallback is available")
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "status": "verified",
-                    "confidence": 0.87
+                    "confidence": 0.87,
+                    "fallback_available": False
+                }
+            ]
+        }
+    }
+
+
+# ============== OTP Schemas ==============
+
+class OTPRequest(BaseModel):
+    """Request OTP for 2FA fallback"""
+    user_id: int = Field(..., description="User ID to send OTP to")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "user_id": 1
+                }
+            ]
+        }
+    }
+
+
+class OTPVerifyRequest(BaseModel):
+    """Verify OTP code"""
+    user_id: int = Field(..., description="User ID")
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "user_id": 1,
+                    "code": "123456"
+                }
+            ]
+        }
+    }
+
+
+class OTPResponse(BaseModel):
+    """OTP request response"""
+    status: str = Field(description="OTP status")
+    message: str = Field(description="Status message")
+    expires_in_seconds: Optional[int] = Field(default=None, description="Seconds until OTP expires")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "status": "otp_sent",
+                    "message": "OTP sent to email",
+                    "expires_in_seconds": 300
+                }
+            ]
+        }
+    }
+
+
+class OTPVerifyResponse(BaseModel):
+    """OTP verification response"""
+    status: Literal["verified", "invalid", "expired", "max_attempts"] = Field(description="Verification result")
+    message: str = Field(description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "status": "verified",
+                    "message": "OTP verified successfully"
                 }
             ]
         }

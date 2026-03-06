@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from backend.models import User
 from backend.auth import hash_password, verify_password
+from backend.email import send_login_alert
 from backend.schemas import RegisterRequest, RegisterResponse, LoginRequest, LoginResponse
 
 router = APIRouter(tags=["Authentication"])
@@ -48,7 +49,7 @@ async def register(data: RegisterRequest):
     summary="Login with password",
     description="Verify username and password. After successful login, user must complete keystroke verification via POST /verify."
 )
-async def login(data: LoginRequest):
+async def login(data: LoginRequest, request: Request, background_tasks: BackgroundTasks):
     """
     Authenticate user with username and password.
     
@@ -60,6 +61,9 @@ async def login(data: LoginRequest):
     """
     print(f"[LOGIN] Attempt: {data.username}")
     user = await User.filter(username=data.username).first()
+    
+    # Get client IP address
+    client_ip = request.client.host if request.client else "Unknown"
 
     if not user:
         print(f"[LOGIN] Failed: User {data.username} not found")
@@ -67,9 +71,27 @@ async def login(data: LoginRequest):
 
     if not verify_password(data.password, user.password_hash):
         print(f"[LOGIN] Failed: Invalid password for {data.username}")
+        # Send failed login alert email
+        if user.email:
+            background_tasks.add_task(
+                send_login_alert,
+                email=user.email,
+                username=user.username,
+                success=False,
+                ip_address=client_ip
+            )
         raise HTTPException(status_code=401, detail="Invalid password")
 
     print(f"[LOGIN] Success: {data.username} (ID: {user.id})")
+    # Send successful login alert email
+    if user.email:
+        background_tasks.add_task(
+            send_login_alert,
+            email=user.email,
+            username=user.username,
+            success=True,
+            ip_address=client_ip
+        )
     return {
         "status": "password_verified",
         "user_id": user.id

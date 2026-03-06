@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Train Your Profile - KeyAuth</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Train Your Typing Profile</h1>
+        <p class="instruction">Type the phrase below <strong>8-10 times</strong> to train your unique typing pattern.</p>
+        
+        <div class="progress-section">
+            <p>Samples collected: <span id="sampleCount">0</span> / 10</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <p class="phrase" id="phraseDisplay">Loading phrase...</p>
+        <input type="text" id="typingInput" placeholder="Type here..." autocomplete="off">
+        <p id="matchStatus" class="match-status"></p>
+        
+        <button id="submitSampleBtn" disabled>Submit Sample</button>
+        <button id="trainModelBtn" disabled>Train Model</button>
+        
+        <p id="message"></p>
+    </div>
+
+    <script>
+        let REQUIRED_PHRASE = '';
+        let currentKeystrokes = [];
+        let allSamples = [];
+        const input = document.getElementById('typingInput');
+        const submitBtn = document.getElementById('submitSampleBtn');
+        const trainBtn = document.getElementById('trainModelBtn');
+        const matchStatus = document.getElementById('matchStatus');
+        const phraseDisplay = document.getElementById('phraseDisplay');
+        const sampleCount = document.getElementById('sampleCount');
+        const progressFill = document.getElementById('progressFill');
+        const message = document.getElementById('message');
+
+        // Check if user is logged in
+        const userId = localStorage.getItem('user_id');
+        if (!userId) {
+            alert('Please register or login first');
+            window.location.href = 'register.html';
+        }
+
+        // Fetch phrase from API
+        async function loadPhrase() {
+            try {
+                const res = await fetch('http://localhost:8000/phrase');
+                const data = await res.json();
+                REQUIRED_PHRASE = data.phrase;
+                phraseDisplay.textContent = REQUIRED_PHRASE;
+            } catch (err) {
+                REQUIRED_PHRASE = 'secure login verification';
+                phraseDisplay.textContent = REQUIRED_PHRASE;
+                console.error('Failed to fetch phrase, using default');
+            }
+        }
+
+        loadPhrase();
+
+        input.addEventListener('keydown', (e) => {
+            currentKeystrokes.push({
+                key: e.key,
+                type: 'down',
+                time: performance.now()
+            });
+        });
+
+        input.addEventListener('keyup', (e) => {
+            currentKeystrokes.push({
+                key: e.key,
+                type: 'up',
+                time: performance.now()
+            });
+            updateMatchStatus();
+        });
+
+        function updateMatchStatus() {
+            const typed = input.value;
+            if (typed === REQUIRED_PHRASE) {
+                matchStatus.textContent = '✓ Phrase matches - Click "Submit Sample"';
+                matchStatus.className = 'match-status match';
+                submitBtn.disabled = false;
+            } else {
+                matchStatus.textContent = typed.length > 0 ? '✗ Keep typing...' : '';
+                matchStatus.className = 'match-status no-match';
+                submitBtn.disabled = true;
+            }
+        }
+
+        function updateProgress() {
+            sampleCount.textContent = allSamples.length;
+            progressFill.style.width = `${(allSamples.length / 10) * 100}%`;
+            
+            // Enable train button when we have enough samples
+            if (allSamples.length >= 10) {
+                trainBtn.disabled = false;
+                trainBtn.textContent = `Train Model (${allSamples.length} samples)`;
+            }
+        }
+
+        submitBtn.addEventListener('click', () => {
+            if (input.value !== REQUIRED_PHRASE) return;
+
+            // Save this sample
+            allSamples.push([...currentKeystrokes]);
+            
+            // Reset for next sample
+            currentKeystrokes = [];
+            input.value = '';
+            matchStatus.textContent = '';
+            submitBtn.disabled = true;
+            
+            updateProgress();
+            
+            if (allSamples.length < 10) {
+                message.textContent = `Sample ${allSamples.length} saved! Type the phrase again.`;
+                message.style.color = 'green';
+            } else {
+                message.textContent = 'Maximum samples reached. Click "Train Model" to finish.';
+                message.style.color = 'green';
+                input.disabled = true;
+            }
+        });
+
+        trainBtn.addEventListener('click', async () => {
+            if (allSamples.length < 10) {
+                message.textContent = 'Need at least 10 samples to train';
+                message.style.color = 'red';
+                return;
+            }
+
+            trainBtn.disabled = true;
+            trainBtn.textContent = 'Training...';
+            message.textContent = 'Training your typing model...';
+            message.style.color = '#667eea';
+
+            try {
+                const res = await fetch('http://localhost:8000/train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: parseInt(userId),
+                        samples: allSamples
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    message.textContent = `Training complete! ${data.samples_used} samples used. Redirecting to login...`;
+                    message.style.color = 'green';
+                    
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } else {
+                    message.textContent = data.detail || 'Training failed';
+                    message.style.color = 'red';
+                    trainBtn.disabled = false;
+                    trainBtn.textContent = `Train Model (${allSamples.length} samples)`;
+                }
+            } catch (err) {
+                message.textContent = 'Connection error';
+                message.style.color = 'red';
+                trainBtn.disabled = false;
+                trainBtn.textContent = `Train Model (${allSamples.length} samples)`;
+            }
+        });
+    </script>
+</body>
+</html>

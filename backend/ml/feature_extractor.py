@@ -15,11 +15,16 @@ def extract_features(keystrokes: list) -> list:
         ...
     ]
     
-    Output format (feature vector):
-    [avg_hold_time, hold_time_std, avg_flight_time, flight_time_std, typing_speed, backspace_rate]
+    Output format (12-feature vector):
+    [
+        mean_hold, std_hold, median_hold, min_hold, max_hold,
+        mean_flight, std_flight, median_flight,
+        typing_speed, total_time, duration_per_char, backspace_rate
+    ]
     """
     if not keystrokes or len(keystrokes) < 2:
-        return [100.0, 10.0, 80.0, 15.0, 5.0, 0.02]
+        # Default values for empty/invalid input
+        return [100.0, 10.0, 100.0, 50.0, 150.0, 80.0, 15.0, 80.0, 5.0, 5000.0, 200.0, 0.02]
     
     # Group events by key
     key_events = {}
@@ -58,22 +63,40 @@ def extract_features(keystrokes: list) -> list:
         variance = sum((x - m) ** 2 for x in lst) / len(lst)
         return variance ** 0.5
     
-    avg_hold_time = mean(hold_times) if hold_times else 100.0
-    hold_time_std = std(hold_times) if hold_times else 10.0
-    avg_flight_time = mean(flight_times) if flight_times else 80.0
-    flight_time_std = std(flight_times) if flight_times else 15.0
+    def median(lst):
+        if not lst:
+            return 0.0
+        sorted_lst = sorted(lst)
+        n = len(sorted_lst)
+        mid = n // 2
+        if n % 2 == 0:
+            return (sorted_lst[mid - 1] + sorted_lst[mid]) / 2
+        return sorted_lst[mid]
     
-    # Typing speed (keys per second)
-    if keystrokes:
-        total_time = max(e["time"] for e in keystrokes) - min(e["time"] for e in keystrokes)
-        num_keys = len([e for e in keystrokes if e["type"] == "down"])
-        typing_speed = (num_keys / (total_time / 1000)) if total_time > 0 else 5.0
-    else:
-        typing_speed = 5.0
+    # Hold time features
+    mean_hold = mean(hold_times) if hold_times else 100.0
+    std_hold = std(hold_times) if hold_times else 10.0
+    median_hold = median(hold_times) if hold_times else 100.0
+    min_hold = min(hold_times) if hold_times else 50.0
+    max_hold = max(hold_times) if hold_times else 150.0
+    
+    # Flight time features
+    mean_flight = mean(flight_times) if flight_times else 80.0
+    std_flight = std(flight_times) if flight_times else 15.0
+    median_flight = median(flight_times) if flight_times else 80.0
+    
+    # Timing features
+    total_time = max(e["time"] for e in keystrokes) - min(e["time"] for e in keystrokes)
+    num_keys = len([e for e in keystrokes if e["type"] == "down"])
+    typing_speed = (num_keys / (total_time / 1000)) if total_time > 0 else 5.0
+    duration_per_char = total_time / num_keys if num_keys > 0 else 200.0
     
     # Backspace rate
     backspace_count = sum(1 for e in keystrokes if e["key"].lower() == "backspace" and e["type"] == "down")
-    total_keys = len([e for e in keystrokes if e["type"] == "down"])
-    backspace_rate = backspace_count / total_keys if total_keys > 0 else 0.0
+    backspace_rate = backspace_count / num_keys if num_keys > 0 else 0.0
     
-    return [avg_hold_time, hold_time_std, avg_flight_time, flight_time_std, typing_speed, backspace_rate]
+    return [
+        mean_hold, std_hold, median_hold, min_hold, max_hold,
+        mean_flight, std_flight, median_flight,
+        typing_speed, total_time, duration_per_char, backspace_rate
+    ]

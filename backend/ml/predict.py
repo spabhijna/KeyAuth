@@ -12,8 +12,9 @@ def verify_user(features: list, user_id: int) -> dict:
     Verify if typing pattern matches user's profile.
     
     Args:
-        features: Feature vector [avg_hold_time, hold_time_std, avg_flight_time, 
-                                  flight_time_std, typing_speed, backspace_rate]
+        features: 12-feature vector [mean_hold, std_hold, median_hold, min_hold, max_hold,
+                                     mean_flight, std_flight, median_flight,
+                                     typing_speed, total_time, duration_per_char, backspace_rate]
         user_id: User ID to verify against
     
     Returns:
