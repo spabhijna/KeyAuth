@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Result</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Verification Result</h1>
+        <div class="result-box">
+            <p><strong>Status:</strong> <span id="status"></span></p>
+            <p><strong>Confidence Score:</strong> <span id="confidence"></span></p>
+        </div>
+        <button onclick="window.location.href='login.html'">Back to Login</button>
+    </div>
+
+    <script>
+        // Read result from localStorage
+        const result = JSON.parse(localStorage.getItem('verificationResult'));
+
+        if (result) {
+            document.getElementById('status').textContent = result.status;
+            document.getElementById('confidence').textContent = result.confidence.toFixed(2);
+
+            // Style based on status
+            const statusElement = document.getElementById('status');
+            if (result.status === 'verified') {
+                statusElement.style.color = 'green';
+            } else {
+                statusElement.style.color = 'red';
+            }
+        } else {
+            document.getElementById('status').textContent = 'No data available';
+        }
+    </script>
+</body>
+</html>
