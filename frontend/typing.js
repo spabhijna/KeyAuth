@@ -91,3 +91,46 @@ verifyBtn.addEventListener('click', async () => {
     verifyBtn.textContent = 'Verify';
   }
 });
+
+// Developer tools: Load sample from JSON
+document.getElementById('loadSampleBtn')?.addEventListener('click', () => {
+  document.getElementById('loadSampleInput').click();
+});
+
+document.getElementById('loadSampleInput')?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      // Can load either a single sample or pick first from samples array
+      let sample = null;
+      if (data.keystrokes) {
+        sample = data.keystrokes;
+      } else if (data.samples && data.samples.length > 0) {
+        sample = data.samples[0];
+      }
+      
+      if (sample && Array.isArray(sample)) {
+        // Clear existing keystrokes and load new ones
+        keystrokes.length = 0;
+        sample.forEach(k => keystrokes.push(k));
+        
+        // Set input to match phrase
+        input.value = REQUIRED_PHRASE;
+        updateMatchStatus();
+        
+        document.getElementById('message').textContent = `Loaded sample with ${keystrokes.length} keystrokes`;
+        document.getElementById('message').style.color = 'green';
+      } else {
+        alert('Invalid file format - need keystrokes or samples array');
+      }
+    } catch (err) {
+      alert('Failed to parse JSON file');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});

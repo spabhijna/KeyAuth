@@ -9,10 +9,10 @@
 <body>
     <div class="container">
         <h1>Train Your Typing Profile</h1>
-        <p class="instruction">Type the phrase below <strong>8-10 times</strong> to train your unique typing pattern.</p>
+        <p class="instruction">Type the phrase below <strong>20 times</strong> to train your unique typing pattern.</p>
         
         <div class="progress-section">
-            <p>Samples collected: <span id="sampleCount">0</span> / 10</p>
+            <p>Samples collected: <span id="sampleCount">0</span> / 20</p>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
@@ -96,10 +96,10 @@
 
         function updateProgress() {
             sampleCount.textContent = allSamples.length;
-            progressFill.style.width = `${(allSamples.length / 10) * 100}%`;
+            progressFill.style.width = `${(allSamples.length / 20) * 100}%`;
             
             // Enable train button when we have enough samples
-            if (allSamples.length >= 10) {
+            if (allSamples.length >= 20) {
                 trainBtn.disabled = false;
                 trainBtn.textContent = `Train Model (${allSamples.length} samples)`;
             }
@@ -119,7 +119,7 @@
             
             updateProgress();
             
-            if (allSamples.length < 10) {
+            if (allSamples.length < 20) {
                 message.textContent = `Sample ${allSamples.length} saved! Type the phrase again.`;
                 message.style.color = 'green';
             } else {
@@ -130,8 +130,8 @@
         });
 
         trainBtn.addEventListener('click', async () => {
-            if (allSamples.length < 10) {
-                message.textContent = 'Need at least 10 samples to train';
+            if (allSamples.length < 20) {
+                message.textContent = 'Need at least 20 samples to train';
                 message.style.color = 'red';
                 return;
             }

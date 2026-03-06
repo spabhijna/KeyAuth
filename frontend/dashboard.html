@@ -5,14 +5,181 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verification Result</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .dual-factor {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 25px 0;
+        }
+        .factor-box {
+            text-align: center;
+            padding: 20px 30px;
+            border-radius: 15px;
+            background: #f8f9fa;
+            min-width: 140px;
+        }
+        .factor-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .factor-value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        .factor-value.text { color: #28a745; }
+        .factor-value.rhythm { color: #667eea; }
+        
+        .combined-score {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            margin: 20px auto;
+            display: inline-block;
+        }
+        .combined-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .combined-value {
+            font-size: 3em;
+            font-weight: bold;
+        }
+        
+        .model-scores {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .model-scores h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .model-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .model-name {
+            width: 120px;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9em;
+        }
+        .model-bar-container {
+            flex: 1;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-right: 15px;
+        }
+        .model-bar {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.6s ease-out;
+        }
+        .model-bar.svm { background: linear-gradient(90deg, #667eea, #764ba2); }
+        .model-bar.iforest { background: linear-gradient(90deg, #11998e, #38ef7d); }
+        .model-bar.dtw { background: linear-gradient(90deg, #f093fb, #f5576c); }
+        .model-score {
+            width: 50px;
+            font-weight: bold;
+            text-align: right;
+            font-size: 0.9em;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+        .status-badge.verified {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .status-badge.suspicious {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+        }
+        .help-text {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 15px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Verification Result</h1>
+        <h1>Authentication Result</h1>
+        
         <div class="result-box">
-            <p><strong>Status:</strong> <span id="status"></span></p>
-            <p><strong>Confidence Score:</strong> <span id="confidence"></span></p>
+            <div id="statusBadge" class="status-badge"></div>
+            
+            <!-- Dual-factor display: Text + Rhythm -->
+            <div class="dual-factor">
+                <div class="factor-box">
+                    <div class="factor-label">Text Match</div>
+                    <div class="factor-value text" id="textMatch">100%</div>
+                </div>
+                <div class="factor-box">
+                    <div class="factor-label">Typing Rhythm</div>
+                    <div class="factor-value rhythm" id="rhythmMatch">--</div>
+                </div>
+            </div>
+            
+            <!-- Combined score -->
+            <div class="combined-score">
+                <div class="combined-label">Combined Authentication Score</div>
+                <div class="combined-value" id="confidence">--</div>
+            </div>
+            
+            <p class="help-text">
+                Text match verifies <strong>what</strong> was typed.<br>
+                Typing rhythm verifies <strong>how</strong> it was typed.
+            </p>
         </div>
+        
+        <div class="model-scores">
+            <h3>Biometric Model Breakdown</h3>
+            
+            <div class="model-row">
+                <span class="model-name">One-Class SVM</span>
+                <div class="model-bar-container">
+                    <div id="svmBar" class="model-bar svm"></div>
+                </div>
+                <span id="svmScore" class="model-score">--</span>
+            </div>
+            
+            <div class="model-row">
+                <span class="model-name">Isolation Forest</span>
+                <div class="model-bar-container">
+                    <div id="iforestBar" class="model-bar iforest"></div>
+                </div>
+                <span id="iforestScore" class="model-score">--</span>
+            </div>
+            
+            <div class="model-row">
+                <span class="model-name">DTW Similarity</span>
+                <div class="model-bar-container">
+                    <div id="dtwBar" class="model-bar dtw"></div>
+                </div>
+                <span id="dtwScore" class="model-score">--</span>
+            </div>
+        </div>
+        
         <button onclick="window.location.href='login.html'">Back to Login</button>
     </div>
 
@@ -21,18 +188,44 @@
         const result = JSON.parse(localStorage.getItem('verificationResult'));
 
         if (result) {
-            document.getElementById('status').textContent = result.status;
-            document.getElementById('confidence').textContent = result.confidence.toFixed(2);
+            // Update status badge
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.textContent = result.status === 'verified' ? '✓ VERIFIED' : '✗ SUSPICIOUS';
+            statusBadge.classList.add(result.status);
+            
+            // Text match is always 100% (phrase was matched before submission)
+            document.getElementById('textMatch').textContent = '100%';
+            
+            // Typing rhythm = weighted confidence from biometric models
+            const rhythmScore = (result.confidence * 100).toFixed(0);
+            document.getElementById('rhythmMatch').textContent = rhythmScore + '%';
+            
+            // Combined score: average of text (100%) and rhythm
+            const combinedScore = ((100 + parseFloat(rhythmScore)) / 2).toFixed(0);
+            document.getElementById('confidence').textContent = combinedScore + '%';
 
-            // Style based on status
-            const statusElement = document.getElementById('status');
-            if (result.status === 'verified') {
-                statusElement.style.color = 'green';
-            } else {
-                statusElement.style.color = 'red';
+            // Update model scores with animated bars
+            if (result.model_scores) {
+                const scores = result.model_scores;
+                
+                // Animate bars after a short delay
+                setTimeout(() => {
+                    if (scores.svm !== undefined) {
+                        document.getElementById('svmBar').style.width = (scores.svm * 100) + '%';
+                        document.getElementById('svmScore').textContent = (scores.svm * 100).toFixed(0) + '%';
+                    }
+                    if (scores.iforest !== undefined) {
+                        document.getElementById('iforestBar').style.width = (scores.iforest * 100) + '%';
+                        document.getElementById('iforestScore').textContent = (scores.iforest * 100).toFixed(0) + '%';
+                    }
+                    if (scores.dtw !== undefined) {
+                        document.getElementById('dtwBar').style.width = (scores.dtw * 100) + '%';
+                        document.getElementById('dtwScore').textContent = (scores.dtw * 100).toFixed(0) + '%';
+                    }
+                }, 100);
             }
         } else {
-            document.getElementById('status').textContent = 'No data available';
+            document.getElementById('statusBadge').textContent = 'NO DATA';
         }
     </script>
 </body>
