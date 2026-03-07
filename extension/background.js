@@ -79,14 +79,18 @@ async function handleMessage(request, sender) {
       }
       return registerData;
     
-    case 'verify':
-      return await apiRequest('/verify', {
+    case 'verify': {
+      console.log('KeyAuth background: Received verify request:', request);
+      const response = await apiRequest('/verify', {
         method: 'POST',
         body: JSON.stringify({
           user_id: request.user_id,
           keystrokes: request.keystrokes
         })
       });
+      console.log('KeyAuth background: Verify response:', response);
+      return response;
+    }
     
     case 'requestOtp':
       return await apiRequest('/request-otp', {

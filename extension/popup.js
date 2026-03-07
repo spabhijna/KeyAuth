@@ -34,23 +34,22 @@ const doneBtn = document.getElementById('doneBtn');
 
 // Initialize popup
 async function init() {
-  // Check if user is logged in
+  // Always check for pending Gmail login
   const userData = await chrome.runtime.sendMessage({ action: 'getStoredUser' });
-  
+  const gmailData = await chrome.storage.local.get(['pendingGmailLogin', 'gmailEmail']);
+
+  if (gmailData.pendingGmailLogin && gmailData.gmailEmail) {
+    // Show verification UI regardless of login state
+    currentUserId = userData.user_id || null;
+    showVerifySection(userData.username || '', gmailData.gmailEmail);
+    loadPhrase();
+    return;
+  }
+
+  // If user is logged in, show status
   if (userData.user_id) {
     currentUserId = userData.user_id;
-    
-    // Check if there's a pending Gmail login
-    const gmailData = await chrome.storage.local.get(['pendingGmailLogin', 'gmailEmail']);
-    
-    if (gmailData.pendingGmailLogin && gmailData.gmailEmail) {
-      // Show verification UI
-      showVerifySection(userData.username, gmailData.gmailEmail);
-      loadPhrase();
-    } else {
-      // Show status (no pending login)
-      showStatusSection(userData.username);
-    }
+    showStatusSection(userData.username);
   } else {
     showLoginSection();
   }
@@ -152,27 +151,28 @@ function updateMatchStatus() {
 loginBtn.addEventListener('click', async () => {
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
-  
+
   if (!username || !password) {
     loginMessage.textContent = 'Please enter username and password';
     loginMessage.className = 'message error';
     return;
   }
-  
+
   loginBtn.disabled = true;
   loginBtn.textContent = 'Logging in...';
   loginMessage.textContent = '';
-  
+
   try {
+    console.log('KeyAuth popup: Sending login request:', { username });
     const data = await chrome.runtime.sendMessage({
       action: 'login',
       username,
       password
     });
-    
+    console.log('KeyAuth popup: Login response:', data);
     if (data.user_id) {
       currentUserId = data.user_id;
-      
+      console.log('KeyAuth popup: Set currentUserId:', currentUserId);
       // Check if there's a pending Gmail login
       const gmailData = await chrome.storage.local.get(['pendingGmailLogin', 'gmailEmail']);
       if (gmailData.pendingGmailLogin && gmailData.gmailEmail) {
@@ -183,6 +183,7 @@ loginBtn.addEventListener('click', async () => {
       }
     }
   } catch (err) {
+    console.error('KeyAuth popup: Login error:', err);
     loginMessage.textContent = err.message || 'Login failed';
     loginMessage.className = 'message error';
   } finally {
@@ -194,18 +195,36 @@ loginBtn.addEventListener('click', async () => {
 // Verify handler
 verifyBtn.addEventListener('click', async () => {
   if (typingInput.value !== REQUIRED_PHRASE) return;
-  
+
   verifyBtn.disabled = true;
   verifyBtn.textContent = 'Verifying...';
   verifyMessage.textContent = '';
-  
+
+  // Ensure currentUserId is set
+  if (!currentUserId) {
+    const userData = await chrome.runtime.sendMessage({ action: 'getStoredUser' });
+    currentUserId = userData.user_id || null;
+    console.log('KeyAuth popup: Restored currentUserId from storage:', currentUserId);
+  }
+
+  if (!currentUserId) {
+    verifyMessage.textContent = 'Please log in first.';
+    verifyMessage.className = 'message error';
+    showLoginSection();
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = 'Verify Identity';
+    return;
+  }
+
   try {
+    console.log('KeyAuth popup: Sending verify request with user_id:', currentUserId, 'keystrokes:', keystrokes.length);
     const data = await chrome.runtime.sendMessage({
       action: 'verify',
       user_id: currentUserId,
       keystrokes
     });
-    
+
+    console.log('KeyAuth popup: Verify response:', data);
     if (data.status === 'verified') {
       // Mark as verified for Gmail
       const gmailData = await chrome.storage.local.get(['gmailEmail']);
@@ -215,35 +234,48 @@ verifyBtn.addEventListener('click', async () => {
           email: gmailData.gmailEmail
         });
       }
-      
+
       // Set flag for content script to pick up and proceed
-      console.log('KeyAuth popup: Setting proceedWithGmailLogin flag to true');
       await chrome.storage.local.set({ proceedWithGmailLogin: true });
-      
-      // Verify it was set
-      const checkSet = await chrome.storage.local.get(['proceedWithGmailLogin']);
-      console.log('KeyAuth popup: Verified flag is set:', checkSet);
-      
-      // Clear pending Gmail login state
       await chrome.storage.local.remove(['pendingGmailLogin', 'gmailEmail']);
-      
-      // Also try direct message to content script
+
+      // Show green feedback
+      verifyMessage.textContent = '✅ Verified! You may continue.';
+      verifyMessage.className = 'message success';
+      showSuccessSection(data.confidence);
+
+      // Close popup after short delay
+      setTimeout(() => {
+        window.close();
+      }, 1200);
+    } else if (data.status === 'suspicious') {
+      // Show red warning
+      verifyMessage.textContent = '⚠️ Suspicious activity detected!';
+      verifyMessage.className = 'message error';
+
+      // Find Gmail tab and close or redirect
       try {
-        const tabs = await chrome.tabs.query({ url: 'https://accounts.google.com/*' });
-        console.log('KeyAuth: Found Google tabs:', tabs.length);
-        for (const tab of tabs) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'proceedWithLogin' });
-            console.log('KeyAuth: Sent proceedWithLogin to tab', tab.id);
-          } catch (e) {
-            console.log('KeyAuth: Could not send to tab', tab.id, e);
+        const gmailTabs = await chrome.tabs.query({ url: 'https://mail.google.com/*' });
+        if (gmailTabs.length > 0) {
+          // Option 1: Close Gmail tab
+          for (const tab of gmailTabs) {
+            await chrome.tabs.remove(tab.id);
+          }
+        } else {
+          // Option 2: Redirect to warning page if Gmail tab not found
+          const googleTabs = await chrome.tabs.query({ url: 'https://accounts.google.com/*' });
+          for (const tab of googleTabs) {
+            await chrome.tabs.update(tab.id, { url: chrome.runtime.getURL('warning.html') });
           }
         }
       } catch (err) {
-        console.error('KeyAuth: Error sending proceedWithLogin:', err);
+        console.error('KeyAuth: Error closing/redirecting Gmail tab:', err);
       }
-      
-      showSuccessSection(data.confidence);
+
+      // Close popup after short delay
+      setTimeout(() => {
+        window.close();
+      }, 1500);
     } else if (data.status === 'suspicious' && data.fallback_available) {
       showOtpSection();
     } else {
@@ -252,6 +284,7 @@ verifyBtn.addEventListener('click', async () => {
       resetTyping();
     }
   } catch (err) {
+    console.error('KeyAuth popup: Verify error:', err);
     verifyMessage.textContent = err.message || 'Verification failed';
     verifyMessage.className = 'message error';
   } finally {
